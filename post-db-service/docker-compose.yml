@@ -1,0 +1,29 @@
+version: "3.9"
+
+networks:
+  default:
+    external:
+      name: banking
+
+services:
+  java:
+    image: 'suxa/postgres-service'
+    ports:
+      - "8071:8071"
+      - "8061:8061"
+    depends_on:
+      - db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/banking_db
+      - SPRING_DATASOURCE_USERNAME=suxa
+      - SPRING_DATASOURCE_PASSWORD=suxa
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+  db:
+    image: 'bitnami/postgresql:latest'
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRESQL_USERNAME=suxa
+      - POSTGRESQL_PASSWORD=suxa
+      - POSTGRESQL_DATABASE=banking_db

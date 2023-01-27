@@ -1,0 +1,16 @@
+syntax = "proto3";
+package uz.suxa.grpc;
+
+message UpdateRequest {
+  string command = 1;
+}
+
+message UpdateResponse {
+  string ccy = 1;
+  double rate = 2;
+  string date = 3;
+}
+
+service UpdateService {
+  rpc receive(UpdateRequest) returns (stream UpdateResponse);
+}

@@ -1,0 +1,14 @@
+syntax = "proto3";
+package uz.suxa.grpc;
+
+message LogRequest {
+  string command = 1;
+}
+
+message LogResponse {
+  string log = 1;
+}
+
+service LogService {
+  rpc receive(LogRequest) returns (stream LogResponse);
+}

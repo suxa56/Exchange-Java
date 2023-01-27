@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+    </style>
+</head>
+<body>
+<h2>Welcome to our banking web app</h2>
+<table>
+    <thead>
+    <tr>
+        <th>Currency</th>
+        <th>Official rate</th>
+        <th>Buy rate</th>
+        <th>Sell rate</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="rate: ${rates}">
+        <td th:text="${rate.getCcy}"/>
+        <td th:text="${rate.getOfficialRate}"/>
+        <td th:text="${rate.getBuyingRate}" th:id="'buy_' + ${rate.getCcy}"/>
+        <td th:text="${rate.getSellingRate}" th:id="'sell_' + ${rate.getCcy}"/>
+    </tr>
+    </tbody>
+</table>
+
+<hr>
+
+<div>
+    <form>
+        <div>
+            <input id="buyRadio" type="radio" value="buy" name="operation" onchange="operationChanged(this.value)">
+            <label for="buyRadio">Buy</label>
+
+            <input id="sellRadio" type="radio" value="sell" name="operation" onchange="operationChanged(this.value)">
+            <label for="sellRadio">Sell</label>
+        </div>
+    </form>
+    <form>
+        <label for="currencySelector">Buy currency</label>
+        <select id="currencySelector" onblur="currencyChanged()">
+            <option value="eur">EUR</option>
+            <option value="usd">USD</option>
+            <option value="rub">RUB</option>
+            <option value="cny">CNY</option>
+        </select>
+
+        <div id="calculator">
+            <label id="currencyLabel" for="inputCurrency">EUR:</label>
+            <input id="inputCurrency" type="number" name="inputCurrency" onblur="calculator()">
+            <label for="outputCurrency">UZS:</label>
+            <input id="outputCurrency" type="number" disabled name="outputCurrency">
+        </div>
+    </form>
+</div>
+
+<script>
+    let currency
+    let operation
+    let inputArea = document.querySelector('#calculator').children.inputCurrency
+    let input
+    let output
+
+    function operationChanged(radioValue) {
+        operation = radioValue
+        if (inputArea.value === '') inputArea.value = 0
+        currencyChanged()
+    }
+
+    function currencyChanged() {
+        currency = document.querySelector('#currencySelector').selectedOptions[0].innerHTML
+        document.querySelector('#currencyLabel').textContent =
+            currency + ':'
+        calculator()
+    }
+
+    function calculator() {
+        input = inputArea.value
+        const rate = document.querySelector('#' + operation + '_' + currency).firstChild.data
+        output = input * rate
+        document.querySelector('#calculator').children.outputCurrency.value = output
+        // doRequest().then(data => {
+        //     console.log(data);
+        // });
+        saveHistory()
+    }
+
+    function saveHistory() {
+        let xhr = new XMLHttpRequest()
+        xhr.open("POST", '/history/save')
+        xhr.setRequestHeader("Accept", "application/json");
+        xhr.setRequestHeader("Content-Type", "application/json");
+        let now = new Date()
+        let date = now.toISOString().substring(0, 19).replace('T', ' ')
+
+        let data = `{"operation": "${operation}","ccy": "${currency}","currency": ${input},"uzs": ${output},"date": "${date}"}`
+        // console.log(data)
+        xhr.send(data)
+    }
+</script>
+</body>
+</html>

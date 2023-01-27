@@ -1,0 +1,122 @@
+version: "3.9"
+
+networks:
+  banking:
+    driver: bridge
+
+services:
+  zookeeper-server:
+    image: bitnami/zookeeper
+    networks:
+      - banking
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka-server:
+    image: bitnami/kafka
+    networks:
+      - banking
+    ports:
+      - 9092:9092
+      - 9093:9093
+    depends_on:
+      - zookeeper-server
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper-server:2181
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka-server:9092,EXTERNAL://localhost:9093
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+
+  init-kafka:
+    image: bitnami/kafka
+    depends_on:
+      - kafka-server
+    networks:
+      - banking
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka-server:9092 --list
+      
+      echo -e 'Creating kafka topics'
+      kafka-topics --bootstrap-server kafka-server:9092 --create --if-not-exists --topic currency-rate --replication-factor 1 --partitions 1
+      kafka-topics --bootstrap-server kafka-server:9092 --create --if-not-exists --topic history --replication-factor 1 --partitions 1
+      
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka-server:9092 --list
+      "
+
+  retriever:
+    image: suxa/retrieve-api-service
+    depends_on:
+      - kafka-server
+    ports:
+      - 8081:8081
+    networks:
+      - banking
+
+  mongodb:
+    image: bitnami/mongodb
+    ports:
+      - 27017:27017
+    networks:
+      - banking
+    environment:
+      - MONGODB_ROOT_PASSWORD=suxa123
+      - MONGODB_USERNAME=suxa
+      - MONGODB_PASSWORD=suxa
+      - MONGODB_DATABASE=logs
+
+  log-service:
+    image: suxa/log-service
+    networks:
+      - banking
+    depends_on:
+      - mongodb
+    ports:
+      - 8072:8072
+      - 8062:8062
+    environment:
+      - SPRING_DATA_MONGODB_USERNAME=suxa
+      - SPRING_DATA_MONGODB_PASSWORD=suxa
+      - SPRING_DATA_MONGODB_DATABASE=logs
+      - SPRING_DATA_MONGODB_HOST=mongodb
+      - SPRING_DATA_MONGODB_PORT=27017
+
+  postgresql:
+    image: bitnami/postgresql
+    networks:
+      - banking
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=suxa
+      - POSTGRES_USER=suxa
+      - POSTGRES_DB=banking_db
+
+  post-service:
+    image: suxa/post-service
+    depends_on:
+      - postgresql
+    networks:
+      - banking
+    ports:
+      - 8071:8071
+      - 8061:8061
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/banking_db
+      - SPRING_DATASOURCE_USERNAME=suxa
+      - SPRING_DATASOURCE_PASSWORD=suxa
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+  connecter:
+    image: suxa/connecter-service
+    depends_on:
+      - post-service
+    networks:
+      - banking
+    ports:
+      - 8091:8091
